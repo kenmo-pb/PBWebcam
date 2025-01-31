@@ -424,6 +424,9 @@ Procedure.i ExamineWebcams()
           AddElement(_PBWebcam())
           _PBWebcam()\instance_id = PeekI(*camera_ids + i * SizeOf(INTEGER))
           _PBWebcam()\Name = SDLx_GetCameraNameString(_PBWebcam()\instance_id)
+          If (_PBWebcam()\Name = "")
+            _PBWebcam()\Name = "Unknown Camera"
+          EndIf
           
           _PBWebcam()\NumFormats = 0
           _PBWebcam()\formatsPtr = SDL_GetCameraSupportedFormats(_PBWebcam()\instance_id, @_PBWebcam()\NumFormats)

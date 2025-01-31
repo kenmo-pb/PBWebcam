@@ -22,6 +22,7 @@ Global IsWebcamWindowOpen.i = #False
 ;- - Procedures
 
 Procedure UpdateSpecsComboBox()
+  PrevPos.i = GetGadgetState(1)
   ClearGadgetItems(1)
   AddGadgetItem(1, 0, "Default Specs")
   AddGadgetItem(1, 1, "Best Framerate")
@@ -35,7 +36,11 @@ Procedure UpdateSpecsComboBox()
       AddGadgetItem(1, j+4, WebcamFormatName(i, j))
     Next j
   EndIf
-  SetGadgetState(1, 1)
+  If ((PrevPos >= 0) And (PrevPos <= 3))
+    SetGadgetState(1, PrevPos)
+  Else
+    SetGadgetState(1, 1)
+  EndIf
 EndProcedure
 
 Procedure TryOpen()
@@ -47,7 +52,7 @@ Procedure TryOpen()
   ElseIf (GetGadgetState(1) = 2)
     Opened = OpenWebcamBestResolution(0, 0, 0, GetGadgetState(0))
   ElseIf (GetGadgetState(1) = 3)
-    Opened = OpenWebcamClosestResolution(640, 480)
+    Opened = OpenWebcamClosestResolution(640, 480, 0.0, GetGadgetState(0))
   Else
     Opened = OpenWebcam(GetGadgetState(0), GetGadgetState(1)-4)
   EndIf
@@ -123,7 +128,7 @@ Padding = 10
 OpenWindow(0, 0, 0, WinW, 4*BoxH + 5*Padding, #PB_Compiler_Filename, #PB_Window_ScreenCentered | #PB_Window_MinimizeGadget | #PB_Window_Invisible)
 ComboBoxGadget(0, Padding, Padding, WindowWidth(0) - 2*Padding, BoxH)
 For i = 0 To N-1
-  AddGadgetItem(0, i, WebcamName(i))
+  AddGadgetItem(0, i, "[" + Str(i) + "] " + WebcamName(i))
 Next i
 SetGadgetState(0, 0)
 
