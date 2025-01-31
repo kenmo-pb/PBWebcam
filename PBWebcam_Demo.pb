@@ -24,19 +24,34 @@ Global IsWebcamWindowOpen.i = #False
 Procedure UpdateSpecsComboBox()
   ClearGadgetItems(1)
   AddGadgetItem(1, 0, "Default Specs")
+  AddGadgetItem(1, 1, "Best Framerate")
+  AddGadgetItem(1, 2, "Best Resolution")
+  AddGadgetItem(1, 3, "Closest to 640x480")
   Protected i.i = GetGadgetState(0)
   Protected N.i = CountWebcamFormats(i)
   If (N > 0)
     Protected j.i
     For j = 0 To N-1
-      AddGadgetItem(1, j+1, WebcamFormatName(i, j))
+      AddGadgetItem(1, j+4, WebcamFormatName(i, j))
     Next j
   EndIf
-  SetGadgetState(1, 0)
+  SetGadgetState(1, 1)
 EndProcedure
 
 Procedure TryOpen()
-  If (OpenWebcam(GetGadgetState(0), GetGadgetState(1)-1))
+  Protected Opened.i
+  If (GetGadgetState(1) = 0)
+    Opened = OpenWebcam(GetGadgetState(0))
+  ElseIf (GetGadgetState(1) = 1)
+    Opened = OpenWebcamBestFramerate(0, 0, 0, GetGadgetState(0))
+  ElseIf (GetGadgetState(1) = 2)
+    Opened = OpenWebcamBestResolution(0, 0, 0, GetGadgetState(0))
+  ElseIf (GetGadgetState(1) = 3)
+    Opened = OpenWebcamClosestResolution(640, 480)
+  Else
+    Opened = OpenWebcam(GetGadgetState(0), GetGadgetState(1)-4)
+  EndIf
+  If (Opened)
     IsWebcamOpen = #True
     DisableGadget(0, #True)
     DisableGadget(1, #True)

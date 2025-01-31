@@ -97,6 +97,135 @@ Procedure.i OpenWebcam(WebcamIndex.i = #PB_Default, FormatIndex.i = #PB_Default)
   ProcedureReturn (Result)
 EndProcedure
 
+Procedure.i OpenWebcamBestFramerate(MinWidth.i = 0, MinHeight.i = 0, MinFramerate.d = 0.0, WebcamIndex.i = #PB_Default)
+  Protected Result.i = #False
+  
+  Protected FoundWebcam.i = -1
+  Protected FoundFormat.i = -1
+  Protected BestFramerate.d = 0.0
+  Protected BestMegapixels.d = 0.0
+  ForEach (_PBWebcam())
+    If ((WebcamIndex < 0) Or (WebcamIndex = ListIndex(_PBWebcam())))
+      ForEach (_PBWebcam()\Spec())
+        Protected Valid.i = #False
+        If (_PBWebcam()\Spec()\format\width >= MinWidth)
+          If (_PBWebcam()\Spec()\format\height >= MinHeight)
+            If (_PBWebcam()\Spec()\Framerate >= MinFramerate)
+              Valid = #True
+            EndIf
+          EndIf
+        EndIf
+        If (Valid)
+          If (_PBWebcam()\Spec()\Framerate > BestFramerate)
+            Valid = #True
+          ElseIf ((_PBWebcam()\Spec()\Framerate = BestFramerate) And (_PBWebcam()\Spec()\Megapixels > BestMegapixels))
+            Valid = #True
+          Else
+            Valid = #False
+          EndIf
+          If (Valid)
+            FoundWebcam = ListIndex(_PBWebcam())
+            FoundFormat = ListIndex(_PBWebcam()\Spec())
+            BestFramerate = _PBWebcam()\Spec()\Framerate
+            BestMegapixels = _PBWebcam()\Spec()\Megapixels
+          EndIf
+        EndIf
+      Next
+    EndIf
+  Next
+  
+  If ((FoundWebcam >= 0) And (FoundFormat >= 0))
+    Result = OpenWebcam(FoundWebcam, FoundFormat)
+  EndIf
+  
+  ProcedureReturn (Result)
+EndProcedure
+
+Procedure.i OpenWebcamBestResolution(MinWidth.i = 0, MinHeight.i = 0, MinFramerate.d = 0.0, WebcamIndex.i = #PB_Default)
+  Protected Result.i = #False
+  
+  Protected FoundWebcam.i = -1
+  Protected FoundFormat.i = -1
+  Protected BestFramerate.d = 0.0
+  Protected BestMegapixels.d = 0.0
+  ForEach (_PBWebcam())
+    If ((WebcamIndex < 0) Or (WebcamIndex = ListIndex(_PBWebcam())))
+      ForEach (_PBWebcam()\Spec())
+        Protected Valid.i = #False
+        If (_PBWebcam()\Spec()\format\width >= MinWidth)
+          If (_PBWebcam()\Spec()\format\height >= MinHeight)
+            If (_PBWebcam()\Spec()\Framerate >= MinFramerate)
+              Valid = #True
+            EndIf
+          EndIf
+        EndIf
+        If (Valid)
+          If (_PBWebcam()\Spec()\Megapixels > BestMegapixels)
+            Valid = #True
+          ElseIf ((_PBWebcam()\Spec()\Megapixels = BestMegapixels) And (_PBWebcam()\Spec()\Framerate > BestFramerate))
+            Valid = #True
+          Else
+            Valid = #False
+          EndIf
+          If (Valid)
+            FoundWebcam = ListIndex(_PBWebcam())
+            FoundFormat = ListIndex(_PBWebcam()\Spec())
+            BestFramerate = _PBWebcam()\Spec()\Framerate
+            BestMegapixels = _PBWebcam()\Spec()\Megapixels
+          EndIf
+        EndIf
+      Next
+    EndIf
+  Next
+  
+  If ((FoundWebcam >= 0) And (FoundFormat >= 0))
+    Result = OpenWebcam(FoundWebcam, FoundFormat)
+  EndIf
+  
+  ProcedureReturn (Result)
+EndProcedure
+
+Procedure.i OpenWebcamClosestResolution(TargetWidth.i, TargetHeight.i, MinFramerate.d = 0.0, WebcamIndex.i = #PB_Default)
+  Protected Result.i = #False
+  
+  Protected FoundWebcam.i = -1
+  Protected FoundFormat.i = -1
+  Protected BestFramerate.d = 0.0
+  Protected LeastDifference.i = -1
+  ForEach (_PBWebcam())
+    If ((WebcamIndex < 0) Or (WebcamIndex = ListIndex(_PBWebcam())))
+      ForEach (_PBWebcam()\Spec())
+        Protected Valid.i = #False
+        If (_PBWebcam()\Spec()\Framerate >= MinFramerate)
+          Valid = #True
+        EndIf
+        If (Valid)
+          Protected Difference.i = Abs(_PBWebcam()\Spec()\format\width - TargetWidth) + Abs(_PBWebcam()\Spec()\format\height - TargetHeight)
+          If ((LeastDifference = -1) Or (Difference < LeastDifference))
+            Valid = #True
+          ElseIf ((Difference = LeastDifference) And (_PBWebcam()\Spec()\Framerate > BestFramerate))
+            Valid = #True
+          Else
+            Valid = #False
+          EndIf
+          If (Valid)
+            FoundWebcam = ListIndex(_PBWebcam())
+            FoundFormat = ListIndex(_PBWebcam()\Spec())
+            BestFramerate = _PBWebcam()\Spec()\Framerate
+            LeastDifference = Difference
+          EndIf
+        EndIf
+      Next
+    EndIf
+  Next
+  
+  If ((FoundWebcam >= 0) And (FoundFormat >= 0))
+    Result = OpenWebcam(FoundWebcam, FoundFormat)
+  EndIf
+  
+  ProcedureReturn (Result)
+EndProcedure
+
 Procedure.i DrawWebcamImage(x.i, y.i, Width.i = #PB_Default, Height.i = #PB_Default)
   Protected Result.i = #False
   If (_PBWebcamImage)
