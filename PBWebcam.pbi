@@ -16,6 +16,8 @@ CompilerIf ((Not Defined(SDL_OpenCamera, #PB_Procedure)) And (Not Defined(Proto_
   XIncludeFile "SDL3.pbi"
 CompilerEndIf
 
+;- Structures (Private)
+
 Structure _PBWebcamSpecStruct
   *format.SDL_CameraSpec
   Name.s
@@ -41,6 +43,9 @@ Structure _PBWebcamEmptyLONGArray
   l.l[0]
 EndStructure
 
+;-
+;- Globals (Private)
+
 Global NewList _PBWebcam._PBWebcamStruct()
 
 Global _PBWebcamCount.l
@@ -49,9 +54,12 @@ Global *_PBWebcamActive.SDL_Camera = #Null
 Global _PBWebcamActiveSpec.SDL_CameraSpec
 Global _PBWebcamFlipMode.i = 0
 Global _PBWebcamImage.i
+Global _PBWebcamFullyInitializedSDL.i = #False
 
 ;-
 ;- Procedures (Public)
+
+Declare _ClearWebcams()
 
 Procedure CloseWebcam()
   If (*_PBWebcamActive)
@@ -413,25 +421,30 @@ Procedure.i CountWebcams()
 EndProcedure
 
 Procedure FinishWebcams()
-  CloseWebcam()
-  ForEach (_PBWebcam())
-    ForEach (_PBWebcam()\Spec())
-      ; ...
-    Next
-    If (_PBWebcam()\formatsPtr)
-      SDL_free(_PBWebcam()\formatsPtr)
-      _PBWebcam()\formatsPtr = #Null
+  _ClearWebcams()
+  
+  If (_PBWebcamFullyInitializedSDL)
+    SDL_Quit()
+  Else
+    If (SDLx_LibraryLoaded())
+      SDL_QuitSubsystem(#SDL_INIT_VIDEO)
     EndIf
-  Next
-  ClearList(_PBWebcam())
-  _PBWebcamCount = 0
-  SDL_Quit()
+  EndIf
 EndProcedure
 
 Procedure.i ExamineWebcams()
   Protected Result.i = #False
   
-  FinishWebcams()
+  _ClearWebcams()
+  
+  Protected FirstSDLInit.i = #False
+  If (SDLx_LibraryLoaded())
+    If (SDL_WasInit(0) = 0) ; No SDL subsystems have been initialized yet, so this file will "own" the main SDL_Init and later call SDL_Quit
+      FirstSDLInit = #True
+    EndIf
+  Else
+    FirstSDLInit = #True ; SDL Library has not even been loaded yet, so this file will "own" the main SDL_Init and later call SDL_Quit
+  EndIf
   
   If (SDL_Init(#SDL_INIT_CAMERA))
     
@@ -476,8 +489,36 @@ Procedure.i ExamineWebcams()
     
   EndIf
   
+  If (Result And FirstSDLInit)
+    _PBWebcamFullyInitializedSDL = #True
+  EndIf
+  
   ProcedureReturn (Result)
 EndProcedure
+
+;-
+;- Procedures (Private)
+
+Procedure _ClearWebcams()
+  CloseWebcam()
+  ForEach (_PBWebcam())
+    ForEach (_PBWebcam()\Spec())
+      _PBWebcam()\Spec()\Name = ""
+    Next
+    ClearList(_PBWebcam()\Spec())
+    If (_PBWebcam()\formatsPtr)
+      SDL_free(_PBWebcam()\formatsPtr)
+      _PBWebcam()\formatsPtr = #Null
+    EndIf
+  Next
+  ClearList(_PBWebcam())
+  _PBWebcamCount = 0
+EndProcedure
+
+
+CompilerIf (#PB_Compiler_IsMainFile)
+  MessageRequester(#PB_Compiler_Filename, "This IncludeFile is not intended to be run by itself." + #LF$ + #LF$ + "See the Demo program, or include this in your own project!", #PB_MessageRequester_Warning)
+CompilerEndIf
 
 CompilerEndIf
 ;-
