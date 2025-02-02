@@ -24,6 +24,7 @@ Structure _PBWebcamSpecStruct
   Pixels.i
   Megapixels.d
   MegapixelsPerSecond.d
+  AspectRatio.d
 EndStructure
 
 Structure _PBWebcamStruct
@@ -223,6 +224,24 @@ Procedure.i OpenWebcamClosestResolution(TargetWidth.i, TargetHeight.i, MinFramer
     Result = OpenWebcam(FoundWebcam, FoundFormat)
   EndIf
   
+  ProcedureReturn (Result)
+EndProcedure
+
+Procedure.i WebcamIndexFromName(Name.s, ExactMatch.i = #False)
+  Protected Result.i = -1
+  ForEach (_PBWebcam())
+    If (ExactMatch)
+      If (_PBWebcam()\Name = Name)
+        Result = ListIndex(_PBWebcam())
+        Break
+      EndIf
+    Else
+      If (FindString(_PBWebcam()\Name, Name, 1, #PB_String_NoCase))
+        Result = ListIndex(_PBWebcam())
+        Break
+      EndIf
+    EndIf
+  Next
   ProcedureReturn (Result)
 EndProcedure
 
@@ -440,6 +459,7 @@ Procedure.i ExamineWebcams()
                 _PBWebcam()\Spec()\Pixels = _PBWebcam()\Spec()\format\width * _PBWebcam()\Spec()\format\height
                 _PBWebcam()\Spec()\Megapixels = _PBWebcam()\Spec()\Pixels / 1000000.0
                 _PBWebcam()\Spec()\MegapixelsPerSecond = _PBWebcam()\Spec()\Megapixels * _PBWebcam()\Spec()\Framerate
+                _PBWebcam()\Spec()\AspectRatio = 1.0 * _PBWebcam()\Spec()\format\width / _PBWebcam()\Spec()\format\height
                 _PBWebcam()\Spec()\Name = Str(_PBWebcam()\Spec()\format\width) + "x" + Str(_PBWebcam()\Spec()\format\height) + " @ " + StrD(_PBWebcam()\Spec()\Framerate, 1) + " fps"
               Next j
             Else
