@@ -34,14 +34,11 @@ Structure _PBWebcamStruct
   Name.s
   
   NumFormats.l
-  *formatsPtr
+  *formatsPtr.SDLx_PointerArray
   
   List Spec._PBWebcamSpecStruct()
 EndStructure
 
-Structure _PBWebcamEmptyLONGArray
-  l.l[0]
-EndStructure
 
 ;-
 ;- Globals (Private)
@@ -347,8 +344,8 @@ Procedure.i GetWebcamFrame()
         ;
         CompilerIf (#True)
           Protected i.i, j.i
-          Protected *LA._PBWebcamEmptyLONGArray
-          Protected *LA2._PBWebcamEmptyLONGArray
+          Protected *LA.SDLx_LongArray
+          Protected *LA2.SDLx_LongArray
           If (_PBWebcamFlipMode Or YFlipped)
             If ((_PBWebcamFlipMode & $02) XOr YFlipped)
               If (BPP > 0)
@@ -448,13 +445,13 @@ Procedure.i ExamineWebcams()
   
   If (SDL_Init(#SDL_INIT_CAMERA))
     
-    Protected *camera_ids = SDL_GetCameras(@_PBWebcamCount)
+    Protected *camera_ids.SDLx_LongArray = SDL_GetCameras(@_PBWebcamCount)
     If (*camera_ids)
       If (_PBWebcamCount > 0)
         Protected i.i
         For i = 0 To _PBWebcamCount - 1
           AddElement(_PBWebcam())
-          _PBWebcam()\instance_id = PeekI(*camera_ids + i * SizeOf(INTEGER))
+          _PBWebcam()\instance_id = *camera_ids\l[i]
           _PBWebcam()\Name = SDLx_GetCameraNameString(_PBWebcam()\instance_id)
           If (_PBWebcam()\Name = "")
             _PBWebcam()\Name = "Unknown Camera"
@@ -467,7 +464,7 @@ Procedure.i ExamineWebcams()
               Protected j.i
               For j = 0 To _PBWebcam()\NumFormats - 1
                 AddElement(_PBWebcam()\Spec())
-                _PBWebcam()\Spec()\format = PeekI(_PBWebcam()\formatsPtr + j * SizeOf(INTEGER))
+                _PBWebcam()\Spec()\format = _PBWebcam()\formatsPtr\ptr[j]
                 _PBWebcam()\Spec()\Framerate = 1.0 * _PBWebcam()\Spec()\format\framerate_numerator / _PBWebcam()\Spec()\format\framerate_denominator
                 _PBWebcam()\Spec()\Pixels = _PBWebcam()\Spec()\format\width * _PBWebcam()\Spec()\format\height
                 _PBWebcam()\Spec()\Megapixels = _PBWebcam()\Spec()\Pixels / 1000000.0
