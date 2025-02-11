@@ -11,11 +11,19 @@ CompilerIf (#PB_Compiler_IsMainFile)
   EnableExplicit
 CompilerEndIf
 
+;- Compile Switches
+
+CompilerIf (Not Defined(PBWebcam_AlwaysShowPixelFormat, #PB_Constant))
+  #PBWebcam_AlwaysShowPixelFormat = #False
+CompilerEndIf
+
+
 #SDLx_IncludeHelperProcedures = #True
 CompilerIf ((Not Defined(SDL_OpenCamera, #PB_Procedure)) And (Not Defined(Proto_SDL_OpenCamera, #PB_Prototype)))
   XIncludeFile "SDL3.pbi"
 CompilerEndIf
 
+;-
 ;- Structures (Private)
 
 Structure _PBWebcamSpecStruct
@@ -457,26 +465,70 @@ Procedure.i ExamineWebcams()
             _PBWebcam()\Name = "Unknown Camera"
           EndIf
           
+          Protected *spec.SDL_CameraSpec
+          Protected MultipleFormats.i = #False
+          Protected FirstFormat.SDL_PixelFormat
+          
           _PBWebcam()\NumFormats = 0
           _PBWebcam()\formatsPtr = SDL_GetCameraSupportedFormats(_PBWebcam()\instance_id, @_PBWebcam()\NumFormats)
           If (_PBWebcam()\formatsPtr)
             If (_PBWebcam()\NumFormats > 0)
               Protected j.i
               For j = 0 To _PBWebcam()\NumFormats - 1
-                AddElement(_PBWebcam()\Spec())
-                _PBWebcam()\Spec()\format = _PBWebcam()\formatsPtr\ptr[j]
-                _PBWebcam()\Spec()\Framerate = 1.0 * _PBWebcam()\Spec()\format\framerate_numerator / _PBWebcam()\Spec()\format\framerate_denominator
-                _PBWebcam()\Spec()\Pixels = _PBWebcam()\Spec()\format\width * _PBWebcam()\Spec()\format\height
-                _PBWebcam()\Spec()\Megapixels = _PBWebcam()\Spec()\Pixels / 1000000.0
-                _PBWebcam()\Spec()\MegapixelsPerSecond = _PBWebcam()\Spec()\Megapixels * _PBWebcam()\Spec()\Framerate
-                _PBWebcam()\Spec()\AspectRatio = 1.0 * _PBWebcam()\Spec()\format\width / _PBWebcam()\Spec()\format\height
-                _PBWebcam()\Spec()\Name = Str(_PBWebcam()\Spec()\format\width) + "x" + Str(_PBWebcam()\Spec()\format\height) + " @ " + StrD(_PBWebcam()\Spec()\Framerate, 1) + " fps"
+                *spec = _PBWebcam()\formatsPtr\ptr[j]
+                Protected Valid.i = #False
+                If (*spec)
+                  Select (*spec\format) ; an SDL_PixelFormat
+                    Case #SDL_PIXELFORMAT_UNKNOWN
+                      Valid = #False
+                    Default
+                      Valid = #True
+                  EndSelect
+                EndIf
+                ;
+                If (Valid)
+                  AddElement(_PBWebcam()\Spec())
+                  _PBWebcam()\Spec()\format = *spec
+                  _PBWebcam()\Spec()\Framerate = 1.0 * _PBWebcam()\Spec()\format\framerate_numerator / _PBWebcam()\Spec()\format\framerate_denominator
+                  _PBWebcam()\Spec()\Pixels = _PBWebcam()\Spec()\format\width * _PBWebcam()\Spec()\format\height
+                  _PBWebcam()\Spec()\Megapixels = _PBWebcam()\Spec()\Pixels / 1000000.0
+                  _PBWebcam()\Spec()\MegapixelsPerSecond = _PBWebcam()\Spec()\Megapixels * _PBWebcam()\Spec()\Framerate
+                  _PBWebcam()\Spec()\AspectRatio = 1.0 * _PBWebcam()\Spec()\format\width / _PBWebcam()\Spec()\format\height
+                  _PBWebcam()\Spec()\Name = Str(_PBWebcam()\Spec()\format\width) + "x" + Str(_PBWebcam()\Spec()\format\height) + " @ " + StrD(_PBWebcam()\Spec()\Framerate, 1) + " fps"
+                  ;
+                  If (ListSize(_PBWebcam()\Spec()) = 1) ; first valid spec
+                    FirstFormat = *spec\format
+                  Else
+                    If (*spec\format <> FirstFormat)
+                      MultipleFormats = #True
+                    EndIf
+                  EndIf
+                EndIf
               Next j
+              _PBWebcam()\NumFormats = ListSize(_PBWebcam()\Spec())
+              
+              If (MultipleFormats Or #PBWebcam_AlwaysShowPixelFormat)
+                ForEach (_PBWebcam()\Spec())
+                  Protected FormatName.s = SDLx_GetPixelFormatNameString(_PBWebcam()\Spec()\format\format)
+                  j = Len("SDL_PIXELFORMAT_")
+                  If (Left(FormatName, j) = "SDL_PIXELFORMAT_")
+                    FormatName = Mid(FormatName, j + 1)
+                  EndIf
+                  _PBWebcam()\Spec()\Name + " (" + FormatName + ")"
+                Next
+              EndIf
             Else
               SDL_free(_PBWebcam()\formatsPtr)
               _PBWebcam()\formatsPtr = #Null
             EndIf
           EndIf
+          
+          CompilerIf (#True) ; Remove Webcams with no valid formats
+            If (_PBWebcam()\NumFormats = 0)
+              DeleteElement(_PBWebcam())
+              _PBWebcamCount - 1
+            EndIf
+          CompilerEndIf
           
         Next i
         Result = _PBWebcamCount
