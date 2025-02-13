@@ -9,9 +9,9 @@ Webcam/camera access in [PureBasic](https://www.purebasic.com/) via [SDL3](https
 2. Get the latest `SDL3.pbi` from my [SDLx repo](https://github.com/kenmo-pb/SDLx)
 3. Get the latest `libSDL3` binary for your operating system
 
-You can find the [latest SDL 3.x.y release on GitHub](https://github.com/libsdl-org/SDL/releases).  
+You can find the [latest SDL 3.x.y release on GitHub](https://github.com/libsdl-org/SDL/releases/latest).  
 On Windows, you need `SDL3.dll` but pay attention to **x86** or **x64** to match your PureBasic compiler.  
-On Linux, you need `libSDL3.so`, but you may prefer to build it from SDL source using [these simple cmake instructions](https://github.com/libsdl-org/SDL/blob/main/docs/README-cmake.md).
+On Linux, you need `libSDL3.so`, but you may prefer to build it from SDL source using [these simple CMake instructions](https://github.com/libsdl-org/SDL/blob/main/docs/README-cmake.md).
 
 In PB, you may encounter SDL3 definitions conflicting with existing SDL1 or SDL2 definitions!  
 One easy fix is to temporarily move `sdl.res` out of your `purebasic/residents/` folder.
