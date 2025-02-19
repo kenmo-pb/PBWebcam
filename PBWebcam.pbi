@@ -18,6 +18,7 @@ CompilerIf (Not Defined(PBWebcam_AlwaysShowPixelFormat, #PB_Constant))
 CompilerEndIf
 
 
+#SDLx_ExcludeCameraSupport    = #False
 #SDLx_IncludeHelperProcedures = #True
 CompilerIf ((Not Defined(SDL_OpenCamera, #PB_Procedure)) And (Not Defined(Proto_SDL_OpenCamera, #PB_Prototype)))
   XIncludeFile "SDL3.pbi"
@@ -64,7 +65,8 @@ Global _PBWebcamFullyInitializedSDL.i = #False
 ;-
 ;- Procedures (Public)
 
-Declare _ClearWebcams()
+Declare.d _CalcWebcamFramerate(*Spec.SDL_CameraSpec)
+Declare   _ClearWebcams()
 
 Procedure CloseWebcam()
   If (*_PBWebcamActive)
@@ -272,6 +274,18 @@ Procedure.i DrawWebcamImage(x.i, y.i, Width.i = #PB_Default, Height.i = #PB_Defa
   ProcedureReturn (Result)
 EndProcedure
 
+Procedure.i DrawWebcamToCanvasGadget(Gadget.i)
+  Protected Result.i = #False
+  If (_PBWebcamImage)
+    If (StartDrawing(CanvasOutput(Gadget)))
+      DrawWebcamImage(0, 0)
+      StopDrawing()
+      Result = #True
+    EndIf
+  EndIf
+  ProcedureReturn (Result)
+EndProcedure
+
 Procedure.i SaveWebcamImage(FileName$, Format.i = #PB_ImagePlugin_BMP, Flags.i = #PB_Default, Depth.i = #PB_Default)
   Protected Result.i = #False
   If (_PBWebcamImage)
@@ -310,7 +324,7 @@ EndProcedure
 
 Procedure.d WebcamFramerate()
   If (*_PBWebcamActive)
-    ProcedureReturn (1.0 * _PBWebcamActiveSpec\framerate_numerator / _PBWebcamActiveSpec\framerate_denominator)
+    ProcedureReturn (_CalcWebcamFramerate(@_PBWebcamActiveSpec))
   EndIf
   ProcedureReturn (0.0)
 EndProcedure
@@ -389,6 +403,24 @@ Procedure.i GetWebcamFrame()
       EndIf
       SDL_ReleaseCameraFrame(*_PBWebcamActive, *surface)
     EndIf
+  EndIf
+  
+  ProcedureReturn (Result)
+EndProcedure
+
+Procedure.i WaitWebcamFrame(TimeoutMS.i = 15 * 1000)
+  Protected Result.i = #False
+  
+  If (*_PBWebcamActive)
+    Protected StartTime.i = ElapsedMilliseconds()
+    Repeat
+      If (GetWebcamFrame())
+        Result = #True
+        Break
+      Else
+        Delay(10)
+      EndIf
+    Until (ElapsedMilliseconds() - StartTime > TimeoutMS)
   EndIf
   
   ProcedureReturn (Result)
@@ -489,7 +521,7 @@ Procedure.i ExamineWebcams()
                 If (Valid)
                   AddElement(_PBWebcam()\Spec())
                   _PBWebcam()\Spec()\format = *spec
-                  _PBWebcam()\Spec()\Framerate = 1.0 * _PBWebcam()\Spec()\format\framerate_numerator / _PBWebcam()\Spec()\format\framerate_denominator
+                  _PBWebcam()\Spec()\Framerate = _CalcWebcamFramerate(_PBWebcam()\Spec()\format)
                   _PBWebcam()\Spec()\Pixels = _PBWebcam()\Spec()\format\width * _PBWebcam()\Spec()\format\height
                   _PBWebcam()\Spec()\Megapixels = _PBWebcam()\Spec()\Pixels / 1000000.0
                   _PBWebcam()\Spec()\MegapixelsPerSecond = _PBWebcam()\Spec()\Megapixels * _PBWebcam()\Spec()\Framerate
@@ -547,6 +579,16 @@ EndProcedure
 
 ;-
 ;- Procedures (Private)
+
+Procedure.d _CalcWebcamFramerate(*Spec.SDL_CameraSpec)
+  Protected Result.d = 1.0
+  If (*Spec)
+    If ((*Spec\framerate_numerator > 0) And (*Spec\framerate_denominator > 0))
+      Result = 1.0 * *Spec\framerate_numerator / *Spec\framerate_denominator
+    EndIf
+  EndIf
+  ProcedureReturn (Result)
+EndProcedure
 
 Procedure _ClearWebcams()
   CloseWebcam()

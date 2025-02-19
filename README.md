@@ -22,19 +22,23 @@ Let's call them "Webcams" because PureBasic already has a "Camera" library for t
 
 - `ExamineWebcams()`, `CountWebcams()`, `WebcamName()` to inspect available webcams
 - `CountWebcamFormats()` and `WebcamFormatName()` to inspect their supported specs
-- `OpenWebcam()` to open a webcam by index, or `OpenWebcamBestFramerate()`, `OpenWebcamBestResolution()`, `OpenWebcamClosestResolution()`, `WebcamIndexFromName()` to simplify code
+- `OpenWebcam()` to open a webcam by index, or `OpenWebcamBestFramerate()`, `OpenWebcamBestResolution()`, `OpenWebcamClosestResolution()`, `WebcamIndexFromName()` to simplify it
 - `WebcamWidth()`, `WebcamHeight()`, `WebcamFramerate()` to inspect the currently open webcam
 - `FlipWebcam()` to mirror it horizontally (common) or flip it vertically
+- `WaitWebcamFrame()` to wait for the first frame, with timeout
 - `GetWebcamFrame()` to prepare a new frame
 - `DrawWebcamImage()` to draw the frame to a 2DDrawing output like any other PB image
+- `DrawWebcamToCanvasGadget()` to simplify it even further
 - `SaveWebcamImage()` to save the frame to a file like any other PB image
 - `CloseWebcam()` and `FinishWebcams()` when you're done!
 
-`GetWebcamFrame()` cannot be called from within a `StartDrawing()`/`StopDrawing()` block.
+`GetWebcamFrame()` and `WaitWebcamFrame()` cannot be called from within a `StartDrawing()`/`StopDrawing()` block.
 
 ## Try It!
 
 Download or `git clone` this repo, and run `PBWebcam_Demo.pb`!  
 It should enumerate your available webcams and their formats, give you a live view (mirroring and flipping optional), and let you save images.
+
+Or, run `PBWebcam_SimplerDemo.pb` to immediately get a live view of the default webcam!
 
 (You still need to get `SDL3.pbi` and `libSDL3` separately, see **Requirements** above.)
