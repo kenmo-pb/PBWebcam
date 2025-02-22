@@ -17,6 +17,10 @@ CompilerIf (Not Defined(PBWebcam_AlwaysShowPixelFormat, #PB_Constant))
   #PBWebcam_AlwaysShowPixelFormat = #False
 CompilerEndIf
 
+CompilerIf (Not Defined(PBWebcam_ExcludeMJPG, #PB_Constant))
+  #PBWebcam_ExcludeMJPG = #True
+CompilerEndIf
+
 
 #SDLx_ExcludeCameraSupport    = #False
 #SDLx_IncludeHelperProcedures = #True
@@ -513,6 +517,8 @@ Procedure.i ExamineWebcams()
                   Select (*spec\format) ; an SDL_PixelFormat
                     Case #SDL_PIXELFORMAT_UNKNOWN
                       Valid = #False
+                    Case #SDL_PIXELFORMAT_MJPG
+                      Valid = Bool(Not #PBWebcam_ExcludeMJPG)
                     Default
                       Valid = #True
                   EndSelect
