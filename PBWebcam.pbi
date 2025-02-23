@@ -28,6 +28,10 @@ CompilerIf ((Not Defined(SDL_OpenCamera, #PB_Procedure)) And (Not Defined(Proto_
   XIncludeFile "SDL3.pbi"
 CompilerEndIf
 
+CompilerIf (Not Defined(PB_PixelFormat_NoAlpha, #PB_Constant))
+  #PB_PixelFormat_NoAlpha = 0
+CompilerEndIf
+
 ;-
 ;- Structures (Private)
 
@@ -344,7 +348,7 @@ Procedure.i GetWebcamFrame()
         Protected dst_format.SDL_PixelFormat
         Protected YFlipped.i = Bool(DrawingBufferPixelFormat() & #PB_PixelFormat_ReversedY)
         Protected BPP.i = 0
-        Select (DrawingBufferPixelFormat() & (~(#PB_PixelFormat_ReversedY | 0))) ; add #PB_PixelFormat_NoAlpha
+        Select (DrawingBufferPixelFormat() & (~(#PB_PixelFormat_ReversedY | #PB_PixelFormat_NoAlpha)))
           Case #PB_PixelFormat_24Bits_RGB
             dst_format = #SDL_PIXELFORMAT_RGB24
             BPP = 24
@@ -359,48 +363,49 @@ Procedure.i GetWebcamFrame()
             BPP = 32
         EndSelect
         
-        SDL_ConvertPixels(*surface\w, *surface\h, *surface\format, *surface\pixels, *surface\pitch, dst_format, DrawingBuffer(), DrawingBufferPitch())
-        
-        ; PB SOFTWARE IMPLEMENTATION of horizontal/vertical image flip!
-        ;   Original plan was to use SDL3's SDL_FlipSurface() before SDL_ConvertPixels(),
-        ;   but it was failing for "operation not supported",
-        ;   I believe because webcam was providing YUY2 pixel data ("FOURCC" formats not flippable, SDL_BITSPERPIXEL reported as 0)
-        ;
-        CompilerIf (#True)
-          Protected i.i, j.i
-          Protected *LA.SDLx_LongArray
-          Protected *LA2.SDLx_LongArray
-          If (_PBWebcamFlipMode Or YFlipped)
-            If ((_PBWebcamFlipMode & $02) XOr YFlipped)
-              If (BPP > 0)
-                Protected RowSize.i = *surface\w * BPP / 8
-                Protected *TempBuffer = AllocateMemory(RowSize, #PB_Memory_NoClear)
-                *LA = DrawingBuffer()
-                *LA2 = DrawingBuffer() + (*surface\h - 1) * DrawingBufferPitch()
-                For j = 0 To *surface\h / 2
-                  CopyMemory(*LA, *TempBuffer, RowSize)
-                  CopyMemory(*LA2, *LA, RowSize)
-                  CopyMemory(*TempBuffer, *LA2, RowSize)
-                  *LA + DrawingBufferPitch()
-                  *LA2 - DrawingBufferPitch()
-                Next j
+        If (SDL_ConvertPixels(*surface\w, *surface\h, *surface\format, *surface\pixels, *surface\pitch, dst_format, DrawingBuffer(), DrawingBufferPitch()))
+          
+          ; PB SOFTWARE IMPLEMENTATION of horizontal/vertical image flip!
+          ;   Original plan was to use SDL3's SDL_FlipSurface() before SDL_ConvertPixels(),
+          ;   but it was failing for "operation not supported",
+          ;   I believe because webcam was providing YUY2 pixel data ("FOURCC" formats not flippable, SDL_BITSPERPIXEL reported as 0)
+          ;
+          CompilerIf (#True)
+            Protected i.i, j.i
+            Protected *LA.SDLx_LongArray
+            Protected *LA2.SDLx_LongArray
+            If (_PBWebcamFlipMode Or YFlipped)
+              If ((_PBWebcamFlipMode & $02) XOr YFlipped)
+                If (BPP > 0)
+                  Protected RowSize.i = *surface\w * BPP / 8
+                  Protected *TempBuffer = AllocateMemory(RowSize, #PB_Memory_NoClear)
+                  *LA = DrawingBuffer()
+                  *LA2 = DrawingBuffer() + (*surface\h - 1) * DrawingBufferPitch()
+                  For j = 0 To *surface\h / 2
+                    CopyMemory(*LA, *TempBuffer, RowSize)
+                    CopyMemory(*LA2, *LA, RowSize)
+                    CopyMemory(*TempBuffer, *LA2, RowSize)
+                    *LA + DrawingBufferPitch()
+                    *LA2 - DrawingBufferPitch()
+                  Next j
+                EndIf
+              EndIf
+              If (_PBWebcamFlipMode & $01)
+                If (BPP = 32)
+                  *LA = DrawingBuffer()
+                  For j = 0 To *surface\h - 1
+                    For i = 0 To *surface\w / 2
+                      Swap *LA\l[i], *LA\l[*surface\w - 1 - i]
+                    Next i
+                    *LA + DrawingBufferPitch()
+                  Next j
+                EndIf
               EndIf
             EndIf
-            If (_PBWebcamFlipMode & $01)
-              If (BPP = 32)
-                *LA = DrawingBuffer()
-                For j = 0 To *surface\h - 1
-                  For i = 0 To *surface\w / 2
-                    Swap *LA\l[i], *LA\l[*surface\w - 1 - i]
-                  Next i
-                  *LA + DrawingBufferPitch()
-                Next j
-              EndIf
-            EndIf
-          EndIf
-        CompilerEndIf
-        
-        Result = #True
+          CompilerEndIf
+          
+          Result = #True
+        EndIf
         StopDrawing()
       EndIf
       SDL_ReleaseCameraFrame(*_PBWebcamActive, *surface)
@@ -612,7 +617,7 @@ EndProcedure
 
 
 CompilerIf (#PB_Compiler_IsMainFile)
-  MessageRequester(#PB_Compiler_Filename, "This IncludeFile is not intended to be run by itself." + #LF$ + #LF$ + "See the Demo program, or include this in your own project!", #PB_MessageRequester_Warning)
+  XIncludeFile "PBWebcam_Demo.pb"
 CompilerEndIf
 
 CompilerEndIf

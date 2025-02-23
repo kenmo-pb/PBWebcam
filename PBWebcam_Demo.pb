@@ -7,6 +7,7 @@
 ;- - Examine Webcams
 
 XIncludeFile "PBWebcam.pbi"
+DisableExplicit
 
 N = ExamineWebcams()
 If (N <= 0)
