@@ -18,7 +18,7 @@ CompilerIf (Not Defined(PBWebcam_AlwaysShowPixelFormat, #PB_Constant))
 CompilerEndIf
 
 CompilerIf (Not Defined(PBWebcam_ExcludeMJPG, #PB_Constant))
-  #PBWebcam_ExcludeMJPG = #True
+  #PBWebcam_ExcludeMJPG = #False
 CompilerEndIf
 
 
@@ -341,8 +341,6 @@ Procedure.i GetWebcamFrame()
     If (*surface)
       If (StartDrawing(ImageOutput(_PBWebcamImage)))
         
-        Protected src_pitch.l = *surface\w * 2 ; review this!!!
-        Protected dst_pitch.SDL_PixelFormat
         Protected dst_format.SDL_PixelFormat
         Protected YFlipped.i = Bool(DrawingBufferPixelFormat() & #PB_PixelFormat_ReversedY)
         Protected BPP.i = 0
@@ -361,7 +359,7 @@ Procedure.i GetWebcamFrame()
             BPP = 32
         EndSelect
         
-        SDL_ConvertPixels(*surface\w, *surface\h, *surface\format, *surface\pixels, src_pitch, dst_format, DrawingBuffer(), DrawingBufferPitch())
+        SDL_ConvertPixels(*surface\w, *surface\h, *surface\format, *surface\pixels, *surface\pitch, dst_format, DrawingBuffer(), DrawingBufferPitch())
         
         ; PB SOFTWARE IMPLEMENTATION of horizontal/vertical image flip!
         ;   Original plan was to use SDL3's SDL_FlipSurface() before SDL_ConvertPixels(),
