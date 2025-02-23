@@ -617,7 +617,7 @@ EndProcedure
 
 
 CompilerIf (#PB_Compiler_IsMainFile)
-  XIncludeFile "PBWebcam_Demo.pb"
+  MessageRequester(#PB_Compiler_Filename, "This IncludeFile is not intended to be run by itself." + #LF$ + #LF$ + "See the Demo program, or include this in your own project!", #PB_MessageRequester_Warning)
 CompilerEndIf
 
 CompilerEndIf
