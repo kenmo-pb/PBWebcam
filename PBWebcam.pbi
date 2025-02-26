@@ -381,8 +381,19 @@ EndProcedure
 Procedure.i GetWebcamFrame()
   Protected Result.i = #False
   
+  CompilerIf (#True)
+    Static Event.SDL_Event
+    If (_PBWebcamFullyInitializedSDL)
+      ; We fully initialized SDL, so we should process the Event loop...
+      While (SDL_PollEvent(@Event))
+        ;Delay(0)
+      Wend
+    EndIf
+  CompilerEndIf
+  
   If (*_PBWebcamActive)
-    Protected *surface.SDL_Surface = SDL_AcquireCameraFrame(*_PBWebcamActive, #Null)
+    Static *surface.SDL_Surface
+    *surface = SDL_AcquireCameraFrame(*_PBWebcamActive, #Null)
     If (*surface)
       If (StartDrawing(ImageOutput(_PBWebcamImage)))
         
@@ -399,23 +410,28 @@ Procedure.i GetWebcamFrame()
             SDL_ReleaseCameraFrame(*_PBWebcamActive, *surface)
             *surface = #Null
             
-            Protected i.i, j.i
-            Protected *LA.SDLx_LongArray
-            Protected *LA2.SDLx_LongArray
+            Static i.i, j.i
+            Static *LA.SDLx_LongArray
+            Static *LA2.SDLx_LongArray
             If (_PBWebcamFlipMode Or _PBWebcamYFlipped)
               If ((_PBWebcamFlipMode & $02) XOr _PBWebcamYFlipped)
                 If (_PBWebcamBPP > 0)
-                  Protected RowSize.i = _PBWebcamActiveSpec\width * _PBWebcamBPP / 8
-                  Protected *TempBuffer = AllocateMemory(RowSize, #PB_Memory_NoClear)
-                  *LA = DrawingBuffer()
-                  *LA2 = DrawingBuffer() + (_PBWebcamActiveSpec\height - 1) * DrawingBufferPitch()
-                  For j = 0 To _PBWebcamActiveSpec\height / 2
-                    CopyMemory(*LA, *TempBuffer, RowSize)
-                    CopyMemory(*LA2, *LA, RowSize)
-                    CopyMemory(*TempBuffer, *LA2, RowSize)
-                    *LA + DrawingBufferPitch()
-                    *LA2 - DrawingBufferPitch()
-                  Next j
+                  Static RowSize.i
+                  Static *TempBuffer
+                  RowSize = _PBWebcamActiveSpec\width * _PBWebcamBPP / 8
+                  *TempBuffer = AllocateMemory(RowSize, #PB_Memory_NoClear)
+                  If (*TempBuffer)
+                    *LA  = DrawingBuffer()
+                    *LA2 = DrawingBuffer() + (_PBWebcamActiveSpec\height - 1) * DrawingBufferPitch()
+                    For j = 0 To _PBWebcamActiveSpec\height / 2
+                      CopyMemory(*LA, *TempBuffer, RowSize)
+                      CopyMemory(*LA2, *LA, RowSize)
+                      CopyMemory(*TempBuffer, *LA2, RowSize)
+                      *LA + DrawingBufferPitch()
+                      *LA2 - DrawingBufferPitch()
+                    Next j
+                    FreeMemory(*TempBuffer)
+                  EndIf
                 EndIf
               EndIf
               If (_PBWebcamFlipMode & $01)

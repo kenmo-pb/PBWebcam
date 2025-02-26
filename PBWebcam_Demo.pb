@@ -70,7 +70,7 @@ Procedure TryOpen()
     SetGadgetText(2, "Close Webcam")
     AddWindowTimer(0, 0, Int(1000 / WebcamFramerate()))
   Else
-    MessageRequester(#PB_Compiler_Filename, "Could not open the specified webcam!", #PB_MessageRequester_Error)
+    MessageRequester(#PB_Compiler_Filename, "Could not open the specified webcam!" + #LF$ + #LF$ + "SDL Error: " + SDLx_GetErrorString(), #PB_MessageRequester_Error)
   EndIf
 EndProcedure
 
