@@ -69,6 +69,9 @@ Global _PBWebcamActiveSpec.SDL_CameraSpec
 Global _PBWebcamFlipMode.i = 0
 Global _PBWebcamImage.i
 Global _PBWebcamFullyInitializedSDL.i = #False
+Global _PBWebcamBPP.i = 0
+Global _PBWebcamYFlipped.i = #False
+Global _PBWebcamDestFormat.i = #SDL_PIXELFORMAT_UNKNOWN
 
 ;-
 ;- Procedures (Public)
@@ -85,6 +88,9 @@ Procedure CloseWebcam()
       _PBWebcamImage = #Null
     EndIf
   EndIf
+  _PBWebcamBPP = 0
+  _PBWebcamYFlipped = #False
+  _PBWebcamDestFormat = #SDL_PIXELFORMAT_UNKNOWN
 EndProcedure
 
 Procedure.i OpenWebcam(WebcamIndex.i = #PB_Default, FormatIndex.i = #PB_Default)
@@ -107,7 +113,33 @@ Procedure.i OpenWebcam(WebcamIndex.i = #PB_Default, FormatIndex.i = #PB_Default)
         If (SDL_GetCameraFormat(*_PBWebcamActive, @_PBWebcamActiveSpec))
           If ((_PBWebcamActiveSpec\width > 0) And (_PBWebcamActiveSpec\width > 0))
             _PBWebcamImage = CreateImage(#PB_Any, _PBWebcamActiveSpec\width, _PBWebcamActiveSpec\height, 32)
-            Result = #True
+            If (_PBWebcamImage)
+              If (StartDrawing(ImageOutput(_PBWebcamImage)))
+                
+                ;_PBWebcamYFlipped = Bool(DrawingBufferPixelFormat() & #PB_PixelFormat_ReversedY)
+                Select (DrawingBufferPixelFormat() & (~(#PB_PixelFormat_ReversedY | #PB_PixelFormat_NoAlpha)))
+                  Case #PB_PixelFormat_24Bits_RGB
+                    _PBWebcamDestFormat = #SDL_PIXELFORMAT_RGB24
+                    _PBWebcamBPP = 24
+                  Case #PB_PixelFormat_24Bits_BGR
+                    _PBWebcamDestFormat = #SDL_PIXELFORMAT_BGR24 ; not tested
+                    _PBWebcamBPP = 24
+                  Case #PB_PixelFormat_32Bits_RGB
+                    _PBWebcamDestFormat = #SDL_PIXELFORMAT_ABGR8888
+                    _PBWebcamBPP = 32
+                  Case #PB_PixelFormat_32Bits_BGR
+                    _PBWebcamDestFormat = #SDL_PIXELFORMAT_ARGB8888
+                    _PBWebcamBPP = 32
+                EndSelect
+                
+                StopDrawing()
+                Result = #True
+              Else
+                CloseWebcam()
+              EndIf
+            Else
+              CloseWebcam()
+            EndIf
           Else
             CloseWebcam()
           EndIf
@@ -345,25 +377,7 @@ Procedure.i GetWebcamFrame()
     If (*surface)
       If (StartDrawing(ImageOutput(_PBWebcamImage)))
         
-        Protected dst_format.SDL_PixelFormat
-        Protected YFlipped.i = Bool(DrawingBufferPixelFormat() & #PB_PixelFormat_ReversedY)
-        Protected BPP.i = 0
-        Select (DrawingBufferPixelFormat() & (~(#PB_PixelFormat_ReversedY | #PB_PixelFormat_NoAlpha)))
-          Case #PB_PixelFormat_24Bits_RGB
-            dst_format = #SDL_PIXELFORMAT_RGB24
-            BPP = 24
-          Case #PB_PixelFormat_24Bits_BGR
-            dst_format = #SDL_PIXELFORMAT_BGR24 ; not tested
-            BPP = 24
-          Case #PB_PixelFormat_32Bits_RGB
-            dst_format = #SDL_PIXELFORMAT_ABGR8888
-            BPP = 32
-          Case #PB_PixelFormat_32Bits_BGR
-            dst_format = #SDL_PIXELFORMAT_ARGB8888
-            BPP = 32
-        EndSelect
-        
-        If (SDL_ConvertPixels(*surface\w, *surface\h, *surface\format, *surface\pixels, *surface\pitch, dst_format, DrawingBuffer(), DrawingBufferPitch()))
+        If (SDL_ConvertPixels(*surface\w, *surface\h, *surface\format, *surface\pixels, *surface\pitch, _PBWebcamDestFormat, DrawingBuffer(), DrawingBufferPitch()))
           
           ; PB SOFTWARE IMPLEMENTATION of horizontal/vertical image flip!
           ;   Original plan was to use SDL3's SDL_FlipSurface() before SDL_ConvertPixels(),
@@ -374,10 +388,10 @@ Procedure.i GetWebcamFrame()
             Protected i.i, j.i
             Protected *LA.SDLx_LongArray
             Protected *LA2.SDLx_LongArray
-            If (_PBWebcamFlipMode Or YFlipped)
-              If ((_PBWebcamFlipMode & $02) XOr YFlipped)
-                If (BPP > 0)
-                  Protected RowSize.i = *surface\w * BPP / 8
+            If (_PBWebcamFlipMode Or _PBWebcamYFlipped)
+              If ((_PBWebcamFlipMode & $02) XOr _PBWebcamYFlipped)
+                If (_PBWebcamBPP > 0)
+                  Protected RowSize.i = *surface\w * _PBWebcamBPP / 8
                   Protected *TempBuffer = AllocateMemory(RowSize, #PB_Memory_NoClear)
                   *LA = DrawingBuffer()
                   *LA2 = DrawingBuffer() + (*surface\h - 1) * DrawingBufferPitch()
@@ -391,7 +405,7 @@ Procedure.i GetWebcamFrame()
                 EndIf
               EndIf
               If (_PBWebcamFlipMode & $01)
-                If (BPP = 32)
+                If (_PBWebcamBPP = 32)
                   *LA = DrawingBuffer()
                   For j = 0 To *surface\h - 1
                     For i = 0 To *surface\w / 2

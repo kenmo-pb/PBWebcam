@@ -6,6 +6,7 @@
 ;-
 ;- - Examine Webcams
 
+;#PBWebcam_ExcludeMJPG = #True
 XIncludeFile "PBWebcam.pbi"
 DisableExplicit
 
