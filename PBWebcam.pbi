@@ -385,17 +385,22 @@ Procedure.i GetWebcamFrame()
           ;   I believe because webcam was providing YUY2 pixel data ("FOURCC" formats not flippable, SDL_BITSPERPIXEL reported as 0)
           ;
           CompilerIf (#True)
+            
+            ; "This function should be called as quickly as possible after acquisition, as SDL keeps a small FIFO queue of surfaces for video frames"
+            SDL_ReleaseCameraFrame(*_PBWebcamActive, *surface)
+            *surface = #Null
+            
             Protected i.i, j.i
             Protected *LA.SDLx_LongArray
             Protected *LA2.SDLx_LongArray
             If (_PBWebcamFlipMode Or _PBWebcamYFlipped)
               If ((_PBWebcamFlipMode & $02) XOr _PBWebcamYFlipped)
                 If (_PBWebcamBPP > 0)
-                  Protected RowSize.i = *surface\w * _PBWebcamBPP / 8
+                  Protected RowSize.i = _PBWebcamActiveSpec\width * _PBWebcamBPP / 8
                   Protected *TempBuffer = AllocateMemory(RowSize, #PB_Memory_NoClear)
                   *LA = DrawingBuffer()
-                  *LA2 = DrawingBuffer() + (*surface\h - 1) * DrawingBufferPitch()
-                  For j = 0 To *surface\h / 2
+                  *LA2 = DrawingBuffer() + (_PBWebcamActiveSpec\height - 1) * DrawingBufferPitch()
+                  For j = 0 To _PBWebcamActiveSpec\height / 2
                     CopyMemory(*LA, *TempBuffer, RowSize)
                     CopyMemory(*LA2, *LA, RowSize)
                     CopyMemory(*TempBuffer, *LA2, RowSize)
@@ -407,9 +412,9 @@ Procedure.i GetWebcamFrame()
               If (_PBWebcamFlipMode & $01)
                 If (_PBWebcamBPP = 32)
                   *LA = DrawingBuffer()
-                  For j = 0 To *surface\h - 1
-                    For i = 0 To *surface\w / 2
-                      Swap *LA\l[i], *LA\l[*surface\w - 1 - i]
+                  For j = 0 To _PBWebcamActiveSpec\height - 1
+                    For i = 0 To _PBWebcamActiveSpec\width / 2
+                      Swap *LA\l[i], *LA\l[_PBWebcamActiveSpec\width - 1 - i]
                     Next i
                     *LA + DrawingBufferPitch()
                   Next j
@@ -422,7 +427,9 @@ Procedure.i GetWebcamFrame()
         EndIf
         StopDrawing()
       EndIf
-      SDL_ReleaseCameraFrame(*_PBWebcamActive, *surface)
+      If (*surface)
+        SDL_ReleaseCameraFrame(*_PBWebcamActive, *surface)
+      EndIf
     EndIf
   EndIf
   

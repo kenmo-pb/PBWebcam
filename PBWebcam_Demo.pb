@@ -6,10 +6,12 @@
 ;-
 ;- - Examine Webcams
 
-;#PBWebcam_ExcludeMJPG = #True
-XIncludeFile "PBWebcam.pbi"
-DisableExplicit
+; You can include MJPG formats for higher resolutions at higher framerates, but I've had some issues with it... especially with Debugger ON...
+#PBWebcam_ExcludeMJPG = #True
 
+XIncludeFile "PBWebcam.pbi"
+
+DisableExplicit
 N = ExamineWebcams()
 If (N <= 0)
   MessageRequester(#PB_Compiler_Filename, "Could not examine webcams, or none found!", #PB_MessageRequester_Error)
