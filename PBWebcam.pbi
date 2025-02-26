@@ -92,7 +92,6 @@ Procedure CloseWebcam()
   _PBWebcamBPP = 0
   _PBWebcamYFlipped = #False
   _PBWebcamDestFormat = #SDL_PIXELFORMAT_UNKNOWN
-  _PBWebcamDriver = ""
 EndProcedure
 
 Procedure.i OpenWebcam(WebcamIndex.i = #PB_Default, FormatIndex.i = #PB_Default)
@@ -116,7 +115,6 @@ Procedure.i OpenWebcam(WebcamIndex.i = #PB_Default, FormatIndex.i = #PB_Default)
           If ((_PBWebcamActiveSpec\width > 0) And (_PBWebcamActiveSpec\width > 0))
             _PBWebcamImage = CreateImage(#PB_Any, _PBWebcamActiveSpec\width, _PBWebcamActiveSpec\height, 32)
             If (_PBWebcamImage)
-              _PBWebcamDriver = SDLx_GetCurrentCameraDriverString()
               If (StartDrawing(ImageOutput(_PBWebcamImage)))
                 
                 CompilerIf (#False) ; never needed?
@@ -539,6 +537,7 @@ Procedure.i ExamineWebcams()
   If (SDL_Init(#SDL_INIT_CAMERA))
     
     Protected *camera_ids.SDLx_LongArray = SDL_GetCameras(@_PBWebcamCount)
+    _PBWebcamDriver = SDLx_GetCurrentCameraDriverString()
     If (*camera_ids)
       If (_PBWebcamCount > 0)
         Protected i.i
@@ -659,6 +658,8 @@ Procedure _ClearWebcams()
   Next
   ClearList(_PBWebcam())
   _PBWebcamCount = 0
+  
+  _PBWebcamDriver = ""
 EndProcedure
 
 
