@@ -23,7 +23,7 @@ Let's call them "Webcams" because PureBasic already has a "Camera" library for t
 - `ExamineWebcams()`, `CountWebcams()`, `WebcamName()` to inspect available webcams
 - `CountWebcamFormats()` and `WebcamFormatName()` to inspect their supported specs
 - `OpenWebcam()` to open a webcam by index, or `OpenWebcamBestFramerate()`, `OpenWebcamBestResolution()`, `OpenWebcamClosestResolution()`, `WebcamIndexFromName()` to simplify it
-- `WebcamWidth()`, `WebcamHeight()`, `WebcamFramerate()` to inspect the currently open webcam
+- `WebcamWidth()`, `WebcamHeight()`, `WebcamFramerate()`, `WebcamDriver()` to inspect the currently open webcam
 - `FlipWebcam()` to mirror it horizontally (common) or flip it vertically
 - `WaitWebcamFrame()` to wait for the first frame, with timeout
 - `GetWebcamFrame()` to prepare a new frame

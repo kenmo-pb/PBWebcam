@@ -72,6 +72,7 @@ Global _PBWebcamFullyInitializedSDL.i = #False
 Global _PBWebcamBPP.i = 0
 Global _PBWebcamYFlipped.i = #False
 Global _PBWebcamDestFormat.i = #SDL_PIXELFORMAT_UNKNOWN
+Global _PBWebcamDriver.s = ""
 
 ;-
 ;- Procedures (Public)
@@ -91,6 +92,7 @@ Procedure CloseWebcam()
   _PBWebcamBPP = 0
   _PBWebcamYFlipped = #False
   _PBWebcamDestFormat = #SDL_PIXELFORMAT_UNKNOWN
+  _PBWebcamDriver = ""
 EndProcedure
 
 Procedure.i OpenWebcam(WebcamIndex.i = #PB_Default, FormatIndex.i = #PB_Default)
@@ -114,9 +116,12 @@ Procedure.i OpenWebcam(WebcamIndex.i = #PB_Default, FormatIndex.i = #PB_Default)
           If ((_PBWebcamActiveSpec\width > 0) And (_PBWebcamActiveSpec\width > 0))
             _PBWebcamImage = CreateImage(#PB_Any, _PBWebcamActiveSpec\width, _PBWebcamActiveSpec\height, 32)
             If (_PBWebcamImage)
+              _PBWebcamDriver = SDLx_GetCurrentCameraDriverString()
               If (StartDrawing(ImageOutput(_PBWebcamImage)))
                 
-                ;_PBWebcamYFlipped = Bool(DrawingBufferPixelFormat() & #PB_PixelFormat_ReversedY)
+                CompilerIf (#False) ; never needed?
+                  _PBWebcamYFlipped = Bool(DrawingBufferPixelFormat() & #PB_PixelFormat_ReversedY)
+                CompilerEndIf
                 Select (DrawingBufferPixelFormat() & (~(#PB_PixelFormat_ReversedY | #PB_PixelFormat_NoAlpha)))
                   Case #PB_PixelFormat_24Bits_RGB
                     _PBWebcamDestFormat = #SDL_PIXELFORMAT_RGB24
@@ -367,6 +372,10 @@ Procedure.d WebcamFramerate()
     ProcedureReturn (_CalcWebcamFramerate(@_PBWebcamActiveSpec))
   EndIf
   ProcedureReturn (0.0)
+EndProcedure
+
+Procedure.s WebcamDriver()
+  ProcedureReturn (_PBWebcamDriver)
 EndProcedure
 
 Procedure.i GetWebcamFrame()
