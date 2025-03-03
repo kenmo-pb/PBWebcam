@@ -33,6 +33,12 @@ CompilerIf (Not Defined(PB_PixelFormat_NoAlpha, #PB_Constant))
 CompilerEndIf
 
 ;-
+;- Constants (Private)
+
+#_PBWebcam_FlipX = $01
+#_PBWebcam_FlipY = $02
+
+;-
 ;- Structures (Private)
 
 Structure _PBWebcamSpecStruct
@@ -57,19 +63,22 @@ Structure _PBWebcamStruct
 EndStructure
 
 Structure _PBWebcamGlobalsStruct
+  FullyInitializedSDL.i
+  ;
   List Webcam._PBWebcamStruct()
   Count.l
   ;
   *Active.SDL_Camera
   ActiveSpec.SDL_CameraSpec
+  Driver.s
   ;
   FlipMode.i
+  ;
+  *CopyOfAcquired.SDL_Surface
+  *Converted.SDL_Surface
   Image.i
-  FullyInitializedSDL.i
-  BPP.i
-  YFlipped.i
   DestFormat.i
-  Driver.s
+  YFlipped.i
 EndStructure
 
 ;-
@@ -82,17 +91,18 @@ Global _PBWebcam._PBWebcamGlobalsStruct
 
 Declare.d _CalcWebcamFramerate(*Spec.SDL_CameraSpec)
 Declare   _ClearWebcams()
+Declare   _ReleaseWebcamSurfaces()
 
 Procedure CloseWebcam()
   If (_PBWebcam\Active)
     SDL_CloseCamera(_PBWebcam\Active)
     _PBWebcam\Active = #Null
+    _ReleaseWebcamSurfaces()
     If (_PBWebcam\Image)
       FreeImage(_PBWebcam\Image)
       _PBWebcam\Image = #Null
     EndIf
   EndIf
-  _PBWebcam\BPP = 0
   _PBWebcam\YFlipped = #False
   _PBWebcam\DestFormat = #SDL_PIXELFORMAT_UNKNOWN
 EndProcedure
@@ -120,22 +130,18 @@ Procedure.i OpenWebcam(WebcamIndex.i = #PB_Default, FormatIndex.i = #PB_Default)
             If (_PBWebcam\Image)
               If (StartDrawing(ImageOutput(_PBWebcam\Image)))
                 
-                CompilerIf (#False) ; never needed?
-                  _PBWebcamYFlipped = Bool(DrawingBufferPixelFormat() & #PB_PixelFormat_ReversedY)
+                CompilerIf (#True) ; confirmed, it's sometimes needed!
+                  _PBWebcam\YFlipped = Bool(DrawingBufferPixelFormat() & #PB_PixelFormat_ReversedY)
                 CompilerEndIf
                 Select (DrawingBufferPixelFormat() & (~(#PB_PixelFormat_ReversedY | #PB_PixelFormat_NoAlpha)))
                   Case #PB_PixelFormat_24Bits_RGB
                     _PBWebcam\DestFormat = #SDL_PIXELFORMAT_RGB24
-                    _PBWebcam\BPP = 24
                   Case #PB_PixelFormat_24Bits_BGR
                     _PBWebcam\DestFormat = #SDL_PIXELFORMAT_BGR24 ; not tested
-                    _PBWebcam\BPP = 24
                   Case #PB_PixelFormat_32Bits_RGB
                     _PBWebcam\DestFormat = #SDL_PIXELFORMAT_ABGR8888
-                    _PBWebcam\BPP = 32
                   Case #PB_PixelFormat_32Bits_BGR
                     _PBWebcam\DestFormat = #SDL_PIXELFORMAT_ARGB8888
-                    _PBWebcam\BPP = 32
                 EndSelect
                 
                 StopDrawing()
@@ -351,7 +357,7 @@ Procedure.i SaveWebcamImage(FileName$, Format.i = #PB_ImagePlugin_BMP, Flags.i =
 EndProcedure
 
 Procedure FlipWebcam(Horizontal.i, Vertical.i)
-  _PBWebcam\FlipMode = (Bool(Horizontal) * $01) | (Bool(Vertical) * $02)
+  _PBWebcam\FlipMode = (Bool(Horizontal) * #_PBWebcam_FlipX) | (Bool(Vertical) * #_PBWebcam_FlipY)
 EndProcedure
 
 Procedure.i WebcamWidth()
@@ -393,71 +399,39 @@ Procedure.i GetWebcamFrame()
   CompilerEndIf
   
   If (_PBWebcam\Active)
+    _ReleaseWebcamSurfaces()
+    
     Static *surface.SDL_Surface
     *surface = SDL_AcquireCameraFrame(_PBWebcam\Active, #Null)
     If (*surface)
-      If (StartDrawing(ImageOutput(_PBWebcam\Image)))
+      
+      ; As of SDL 3.2.6, cannot guarantee DuplicateSurface to convert/flip later, because MJPG format fails CreateSurface/CalculateSurfaceSize
+      ;_PBWebcam\CopyOfAcquired = SDL_DuplicateSurface(*surface)
+      
+      ; Convert immediately to RGB format instead...
+      _PBWebcam\Converted = SDL_ConvertSurface(*surface, _PBWebcam\DestFormat)
+      
+      ; "This function should be called as quickly as possible after acquisition"
+      SDL_ReleaseCameraFrame(_PBWebcam\Active, *surface)
+      
+      If (_PBWebcam\Converted)
         
-        If (SDL_ConvertPixels(*surface\w, *surface\h, *surface\format, *surface\pixels, *surface\pitch, _PBWebcam\DestFormat, DrawingBuffer(), DrawingBufferPitch()))
-          
-          ; PB SOFTWARE IMPLEMENTATION of horizontal/vertical image flip!
-          ;   Original plan was to use SDL3's SDL_FlipSurface() before SDL_ConvertPixels(),
-          ;   but it was failing for "operation not supported",
-          ;   I believe because webcam was providing YUY2 pixel data ("FOURCC" formats not flippable, SDL_BITSPERPIXEL reported as 0)
-          ;
-          CompilerIf (#True)
-            
-            ; "This function should be called as quickly as possible after acquisition, as SDL keeps a small FIFO queue of surfaces for video frames"
-            SDL_ReleaseCameraFrame(_PBWebcam\Active, *surface)
-            *surface = #Null
-            
-            ; TODO: On Windows, consider StretchBlt_() for faster hardware-accelerated flipping ?
-            
-            Static i.i, j.i
-            Static *LA.SDLx_LongArray
-            Static *LA2.SDLx_LongArray
-            If (_PBWebcam\FlipMode Or _PBWebcam\YFlipped)
-              If ((_PBWebcam\FlipMode & $02) XOr _PBWebcam\YFlipped)
-                If (_PBWebcam\BPP > 0)
-                  Static RowSize.i
-                  Static *TempBuffer
-                  RowSize = _PBWebcam\ActiveSpec\width * _PBWebcam\BPP / 8
-                  *TempBuffer = AllocateMemory(RowSize, #PB_Memory_NoClear)
-                  If (*TempBuffer)
-                    *LA  = DrawingBuffer()
-                    *LA2 = DrawingBuffer() + (_PBWebcam\ActiveSpec\height - 1) * DrawingBufferPitch()
-                    For j = 0 To _PBWebcam\ActiveSpec\height / 2
-                      CopyMemory(*LA, *TempBuffer, RowSize)
-                      CopyMemory(*LA2, *LA, RowSize)
-                      CopyMemory(*TempBuffer, *LA2, RowSize)
-                      *LA + DrawingBufferPitch()
-                      *LA2 - DrawingBufferPitch()
-                    Next j
-                    FreeMemory(*TempBuffer)
-                  EndIf
-                EndIf
-              EndIf
-              If (_PBWebcam\FlipMode & $01)
-                If (_PBWebcam\BPP = 32)
-                  *LA = DrawingBuffer()
-                  For j = 0 To _PBWebcam\ActiveSpec\height - 1
-                    For i = 0 To _PBWebcam\ActiveSpec\width / 2
-                      Swap *LA\l[i], *LA\l[_PBWebcam\ActiveSpec\width - 1 - i]
-                    Next i
-                    *LA + DrawingBufferPitch()
-                  Next j
-                EndIf
-              EndIf
-            EndIf
-          CompilerEndIf
-          
+        ; Once in RGB surface format, can use SDL's FlipSurface function
+        If (_PBWebcam\FlipMode & #_PBWebcam_FlipX)
+          SDL_FlipSurface(_PBWebcam\Converted, #SDL_FLIP_HORIZONTAL)
+        EndIf
+        If ((_PBWebcam\FlipMode & #_PBWebcam_FlipY) XOr (_PBWebcam\YFlipped))
+          SDL_FlipSurface(_PBWebcam\Converted, #SDL_FLIP_VERTICAL)
+        EndIf
+        
+        ; Cannot save this for "just in time" at DrawWebcamImage call, because we'll already be within a Start/StopDrawing block at that point!
+        If (StartDrawing(ImageOutput(_PBWebcam\Image)))
+          SDL_ConvertPixels(_PBWebcam\Converted\w, _PBWebcam\Converted\h, _PBWebcam\Converted\format, _PBWebcam\Converted\pixels, _PBWebcam\Converted\pitch, _PBWebcam\DestFormat, DrawingBuffer(), DrawingBufferPitch())
+          StopDrawing()
           Result = #True
         EndIf
-        StopDrawing()
       EndIf
-      If (*surface)
-        SDL_ReleaseCameraFrame(_PBWebcam\Active, *surface)
-      EndIf
+      
     EndIf
   EndIf
   
@@ -638,6 +612,19 @@ EndProcedure
 
 ;-
 ;- Procedures (Private)
+
+Procedure _ReleaseWebcamSurfaces()
+  If (_PBWebcam\Converted)
+    If (_PBWebcam\Converted <> _PBWebcam\CopyOfAcquired)
+      SDL_DestroySurface(_PBWebcam\Converted)
+    EndIf
+    _PBWebcam\Converted = #Null
+  EndIf
+  If (_PBWebcam\CopyOfAcquired)
+    SDL_DestroySurface(_PBWebcam\CopyOfAcquired)
+    _PBWebcam\CopyOfAcquired = #Null
+  EndIf
+EndProcedure
 
 Procedure.d _CalcWebcamFramerate(*Spec.SDL_CameraSpec)
   Protected Result.d = 1.0

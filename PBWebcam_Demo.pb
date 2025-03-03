@@ -6,9 +6,6 @@
 ;-
 ;- - Examine Webcams
 
-; You can include MJPG formats for higher resolutions at higher framerates, but I've had some issues with it... especially with Debugger ON...
-#PBWebcam_ExcludeMJPG = #True
-
 XIncludeFile "PBWebcam.pbi"
 
 DisableExplicit
